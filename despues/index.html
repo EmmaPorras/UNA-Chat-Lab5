@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>UNA Chat - Laboratorio 5</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #f1f5f9; color: #172033; font: 15px Arial, sans-serif; }
+    header { background: #124f80; color: white; padding: 18px 24px; }
+    header h1 { margin: 0 0 5px; font-size: 23px; }
+    header p { margin: 0; opacity: .9; }
+    main { max-width: 940px; margin: auto; padding: 15px 15px 100px; }
+    #messages { list-style: none; padding: 0; margin: 0; }
+    #messages li { background: #fff; margin-bottom: 9px; border-radius: 7px; padding: 12px; overflow-wrap: anywhere; box-shadow: 0 1px 4px #0001; }
+    #messages .author { margin-right: 6px; font-weight: 700; }
+    #messages img { display: block; margin-top: 10px; max-width: 100%; max-height: 360px; border-radius: 5px; }
+    #messages video { display: block; margin-top: 10px; max-width: 100%; width: 500px; }
+    #messages iframe { display: block; margin-top: 10px; width: min(100%, 560px); aspect-ratio: 16 / 9; border: 0; }
+    #error { background: #fee2e2; color: #991b1b; padding: 9px; border-radius: 5px; margin-bottom: 10px; }
+    #error[hidden] { display: none; }
+    form { position: fixed; bottom: 0; left: 0; width: 100%; display: flex; gap: 8px; padding: 12px; background: #fff; border-top: 1px solid #cbd5e1; }
+    input { font-size: 15px; border: 1px solid #94a3b8; border-radius: 5px; padding: 12px; min-width: 0; }
+    #nombre { width: 24%; max-width: 180px; }
+    #m { flex: 1; }
+    button { background: #145c91; color: white; font-weight: 600; border: 0; border-radius: 5px; padding: 0 25px; cursor: pointer; }
+    button:hover { background: #0e4167; }
+  </style>
+</head>
+<body>
+  <header><h1>UNA Chat</h1><p>Chat protegido contra inyección de scripts · imágenes y videos</p></header>
+  <main>
+    <div id="error" role="alert" hidden></div>
+    <ul id="messages" aria-label="Mensajes del chat"></ul>
+  </main>
+  <form id="chatForm">
+    <input id="nombre" aria-label="Nombre" maxlength="40" autocomplete="off" placeholder="Nombre de usuario">
+    <input id="m" aria-label="Mensaje" maxlength="2000" autocomplete="off" placeholder="Escriba un texto o URL de imagen/video" required>
+    <button type="submit">Enviar</button>
+  </form>
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    'use strict';
+    const socket = io();
+    const lista = document.getElementById('messages');
+    const aviso = document.getElementById('error');
+    const mensajeInput = document.getElementById('m');
+    const nombreInput = document.getElementById('nombre');
+    const color = '#1D4ED8';
+
+    document.getElementById('chatForm').addEventListener('submit', evento => {
+      evento.preventDefault();
+      aviso.hidden = true;
+      const payload = {
+        nombre: nombreInput.value || 'Anónimo',
+        mensaje: mensajeInput.value,
+        color
+      };
+      socket.emit('Evento-Mensaje-Server', JSON.stringify(payload));
+      mensajeInput.value = '';
+      mensajeInput.focus();
+    });
+
+    socket.on('Evento-Error-Server', texto => {
+      aviso.textContent = texto;
+      aviso.hidden = false;
+    });
+
+    socket.on('Evento-Mensaje-Server', datos => {
+      const msg = typeof datos === 'string' ? JSON.parse(datos) : datos;
+      const fila = document.createElement('li');
+      const autor = document.createElement('strong');
+      autor.className = 'author';
+      autor.style.color = /^#[a-fA-F0-9]{6}$/.test(msg.color) ? msg.color : '#1D4ED8';
+      autor.textContent = (msg.nombre || 'Anónimo') + ':';
+      fila.appendChild(autor);
+
+      if (msg.tipo === 'imagen' && typeof msg.url === 'string') {
+        const imagen = document.createElement('img');
+        imagen.src = msg.url;
+        imagen.alt = 'Imagen compartida por ' + msg.nombre;
+        imagen.loading = 'eager';
+        fila.appendChild(imagen);
+      } else if (msg.tipo === 'youtube' && typeof msg.url === 'string') {
+        const reproductor = document.createElement('iframe');
+        reproductor.src = msg.url;
+        reproductor.title = 'Video de YouTube compartido por ' + msg.nombre;
+        reproductor.allow = 'encrypted-media; picture-in-picture';
+        reproductor.referrerPolicy = 'no-referrer';
+        reproductor.allowFullscreen = true;
+        fila.appendChild(reproductor);
+      } else if (msg.tipo === 'video' && typeof msg.url === 'string') {
+        const video = document.createElement('video');
+        video.src = msg.url;
+        video.controls = true;
+        video.preload = 'auto';
+        fila.appendChild(video);
+      } else {
+        const texto = document.createElement('span');
+        texto.textContent = msg.mensaje || '';
+        fila.appendChild(texto);
+      }
+      lista.appendChild(fila);
+      window.scrollTo(0, document.body.scrollHeight);
+    });
+  </script>
+</body>
+</html>
