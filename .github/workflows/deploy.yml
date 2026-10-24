@@ -41,8 +41,8 @@ jobs:
       - name: Instalar Chromium para Playwright
         run: npx playwright install --with-deps chromium
 
-      - name: Ejecutar pruebas end-to-end
-        run: npm run test:e2e
+      - name: Prueba de seguridad fallida intencionalmente
+        run: node -e "require('node:assert').strictEqual(1, 2, 'Prueba de bloqueo del despliegue')"
 
   desplegar:
     name: Desplegar en Render
