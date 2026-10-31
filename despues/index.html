@@ -41,7 +41,7 @@
   <script src="/socket.io/socket.io.js"></script>
   <script>
     'use strict';
-    const socket = io();
+    const socket = io({ transports: ['websocket'] });
     const lista = document.getElementById('messages');
     const aviso = document.getElementById('error');
     const mensajeInput = document.getElementById('m');
