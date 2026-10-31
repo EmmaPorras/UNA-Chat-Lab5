@@ -28,10 +28,20 @@ function createChatServer() {
   return { app, httpServer, io };
 }
 
+
+const servidor = createChatServer();
+
+// Iniciar normalmente cuando se ejecuta con npm start
 if (require.main === module) {
-  const { httpServer } = createChatServer();
   const port = process.env.PORT || 3000;
-  httpServer.listen(port, () => console.log(`UNA Chat en http://localhost:${port}`));
+  servidor.httpServer.listen(port, () => {
+    console.log(`UNA Chat en http://localhost:${port}`);
+  });
 }
 
-module.exports = { createChatServer };
+// Permitir que Vercel utilice el servidor HTTP y Socket.IO
+module.exports = servidor.httpServer;
+
+// Conservar la función utilizada por las pruebas del proyecto
+module.exports.createChatServer = createChatServer;
+
