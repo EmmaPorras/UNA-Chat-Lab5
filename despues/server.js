@@ -1,4 +1,5 @@
 'use strict';
+const Sentry = require('./instrument');
 const path = require('path');
 const express = require('express');
 const http = require('http');
@@ -13,6 +14,7 @@ function createChatServer() {
   app.get('/', (_req, res) => res.sendFile(path.join(__dirname, 'index.html')));
   app.use('/media', express.static(path.join(__dirname, 'media')));
 
+
   io.on('connection', socket => {
     socket.on('Evento-Mensaje-Server', (datos, confirmar) => {
       const resultado = JSON.parse(validation.validateMessage(datos));
@@ -25,8 +27,15 @@ function createChatServer() {
       if (typeof confirmar === 'function') confirmar({ ok: true });
     });
   });
+
+  // Registrar errores HTTP de Express en Sentry
+  if (process.env.SENTRY_DSN) {
+    Sentry.setupExpressErrorHandler(app);
+  }
+
   return { app, httpServer, io };
 }
+
 
 
 const servidor = createChatServer();
