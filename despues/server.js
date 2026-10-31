@@ -14,6 +14,30 @@ function createChatServer() {
   app.get('/', (_req, res) => res.sendFile(path.join(__dirname, 'index.html')));
   app.use('/media', express.static(path.join(__dirname, 'media')));
 
+  
+  // Ruta temporal para comprobar la detección de errores en Sentry
+  app.get('/prueba-sentry', async (req, res) => {
+    const token = process.env.SENTRY_TEST_TOKEN;
+
+    // Impedir que cualquier visitante active la prueba
+    if (!token || req.get('x-sentry-test-token') !== token) {
+      return res.sendStatus(404);
+    }
+
+    try {
+      throw new Error('Prueba controlada de error en UNA Chat - Vercel');
+    } catch (error) {
+      const eventId = Sentry.captureException(error);
+      await Sentry.flush(2000);
+
+      return res.status(500).json({
+        mensaje: 'Error controlado enviado a Sentry',
+        eventId
+      });
+    }
+  });
+
+
 
   io.on('connection', socket => {
     socket.on('Evento-Mensaje-Server', (datos, confirmar) => {
