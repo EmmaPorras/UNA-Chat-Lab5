@@ -10,6 +10,9 @@
     "test:e2e": "playwright test --project=chromium"
   },
   "dependencies": {
+    "@opentelemetry/api": "^1.9.1",
+    "@opentelemetry/api-logs": "^0.223.0",
+    "@opentelemetry/auto-instrumentations-node": "^0.81.2",
     "@sentry/node": "^11.10.0",
     "express": "^4.21.2",
     "socket.io": "^4.8.1"

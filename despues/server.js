@@ -10,6 +10,49 @@ function createChatServer() {
   const app = express();
   const httpServer = http.createServer(app);
   const io = new Server(httpServer);
+  // Monitoreo exclusivo del entorno local
+  if (process.env.OTEL_SERVICE_NAME === 'una-chat-local') {
+    const { metrics, context, trace } = require('@opentelemetry/api');
+    const { logs, SeverityNumber } = require('@opentelemetry/api-logs');
+
+    const logger = logs.getLogger('una-chat-local');
+    const meter = metrics.getMeter('una-chat-local');
+
+    const solicitudes = meter.createCounter('una_chat_requests');
+    const duracion = meter.createHistogram('una_chat_request_duration', {
+      unit: 'ms'
+    });
+
+    app.use((req, res, next) => {
+      const inicio = Date.now();
+      const span = trace.getSpan(context.active());
+      const traceId = span?.spanContext().traceId;
+
+      logger.emit({
+        severityNumber: SeverityNumber.INFO,
+        severityText: 'INFO',
+        body: 'Solicitud recibida en UNA Chat local',
+        attributes: {
+          'http.request.method': req.method,
+          'url.path': req.path,
+          'trace_id': traceId || 'sin-traza'
+        }
+      });
+
+      res.on('finish', () => {
+        const atributos = {
+          method: req.method,
+          status_code: String(res.statusCode)
+        };
+
+        solicitudes.add(1, atributos);
+        duracion.record(Date.now() - inicio, atributos);
+      });
+
+      next();
+    });
+  }
+
 
   app.get('/', (_req, res) => res.sendFile(path.join(__dirname, 'index.html')));
   app.use('/media', express.static(path.join(__dirname, 'media')));
