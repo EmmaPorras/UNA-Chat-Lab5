@@ -6,7 +6,7 @@ const http = require('http');
 const { Server } = require('socket.io');
 const validation = require('./libs/unalib');
 
-function createChatServer() {
+function createChatServer(authMiddleware = null) {
   const app = express();
   const httpServer = http.createServer(app);
   const io = new Server(httpServer);
@@ -54,8 +54,27 @@ function createChatServer() {
   }
 
 
-  app.get('/', (_req, res) => res.sendFile(path.join(__dirname, 'index.html')));
-  app.use('/media', express.static(path.join(__dirname, 'media')));
+  if (authMiddleware) {
+    app.use(authMiddleware);
+
+    io.engine.use((req, res, next) => {
+      if (req._query && req._query.sid !== undefined) return next();
+      authMiddleware(req, res, next);
+    });
+
+    io.use((socket, next) => {
+      if (socket.request.oidc?.isAuthenticated()) return next();
+      next(new Error('Debes iniciar sesión para usar el chat'));
+    });
+  }
+
+  const requireLogin = authMiddleware
+    ? require('express-openid-connect').requiresAuth()
+    : (_req, _res, next) => next();
+
+  app.get('/', requireLogin, (_req, res) =>
+    res.sendFile(path.join(__dirname, 'index.html')));
+  app.use('/media', requireLogin, express.static(path.join(__dirname, 'media')));
 
   
 
@@ -88,15 +107,27 @@ const servidor = createChatServer();
 
 // Iniciar normalmente cuando se ejecuta con npm start
 if (require.main === module) {
-  const port = process.env.PORT || 3000;
-  servidor.httpServer.listen(port, () => {
-    console.log(`UNA Chat en http://localhost:${port}`);
-  });
+  require('dotenv').config();
+  const { createAuthMiddleware } = require('./server/auth');
+
+  createAuthMiddleware()
+    .then(authMiddleware => {
+      const protegido = createChatServer(authMiddleware);
+      const port = process.env.PORT || 3000;
+
+      protegido.httpServer.listen(port, () => {
+        console.log(`UNA Chat con Auth0 en http://localhost:${port}`);
+      });
+    })
+    .catch(error => {
+      console.error('Error al iniciar Auth0:', error.message);
+      process.exitCode = 1;
+    });
 }
 
 // Permitir que Vercel utilice el servidor HTTP y Socket.IO
 module.exports = servidor.httpServer;
 
-// Conservar la función utilizada por las pruebas del proyecto
+// Conservar la funciÃ³n utilizada por las pruebas del proyecto
 module.exports.createChatServer = createChatServer;
 
