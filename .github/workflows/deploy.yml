@@ -1,9 +1,9 @@
-
+﻿
 name: Pruebas y despliegue UNA Chat en Render
 
 on:
   push:
-    branches: [main]
+    branches: [main, lab8-vault-local]
   workflow_dispatch:
 
 permissions:
@@ -59,3 +59,4 @@ jobs:
           curl --fail --silent --show-error \
             --get --data-urlencode "ref=${GITHUB_SHA}" \
             "$RENDER_DEPLOY_HOOK_URL"
+
